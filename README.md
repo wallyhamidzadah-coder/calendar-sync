@@ -1,36 +1,75 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Calendar Sync
 
-## Getting Started
+A local web app that merges Outlook (USC Microsoft 365) and Google Calendar into one unified view.
 
-First, run the development server:
+## Status: Phase 1 complete
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+- Outlook ICS feed integration: working
+- Google Calendar OAuth integration: working
+- Merged, sorted event display: working
+- Weekly view, conflict detection, AI scheduling: not started
+
+## Architecture
+
+```
+Outlook (ICS feed) ---\
+                        > merged in page.tsx --> React UI
+Google Calendar (OAuth)-/
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Two independent API routes fetch and normalize events into the same shape:
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+```ts
+{ summary: string, start: string, end: string, location: string | null }
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+`page.tsx` calls both routes, tags each event with its source, merges the arrays, sorts by start time, and renders the next 30 upcoming events.
 
-## Learn More
+## Folder structure
 
-To learn more about Next.js, take a look at the following resources:
+```
+src/app/
+  page.tsx                       merged UI, fetches both APIs client-side
+  api/
+    outlook/route.ts             fetches + parses Outlook ICS feed
+    google/
+      login/route.ts             redirects to Google OAuth consent screen
+      callback/route.ts          exchanges auth code for tokens, saves to .tokens.json
+      events/route.ts            refreshes token, fetches events from Google Calendar API
+```
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Environment variables (.env.local, gitignored)
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+```
+OUTLOOK_ICS_URL=          # USC Outlook published calendar ICS link
+GOOGLE_CLIENT_ID=         # from Google Cloud Console OAuth client
+GOOGLE_CLIENT_SECRET=     # from Google Cloud Console OAuth client
+GOOGLE_REDIRECT_URI=http://localhost:3001/api/google/callback
+```
 
-## Deploy on Vercel
+Google Cloud project: `calendar-sync-502204`, OAuth client type: Web application, user type: Internal (org-restricted, no verification needed).
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## Local secrets (gitignored)
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+`.tokens.json` is created after first Google login. Contains `access_token`, `refresh_token`, `expires_in`, `scope`. The `events` route auto-refreshes the access token on every request using the stored refresh token, so no repeat login is needed unless the refresh token itself is revoked.
+
+## Setup steps (fresh machine)
+
+1. `npm install`
+2. Create `.env.local` with the four variables above
+3. `npm run dev` (runs on port 3001 if 3000 is taken)
+4. Visit `http://localhost:3001/api/google/login` once to generate `.tokens.json`
+5. Visit `http://localhost:3001` to see the merged calendar
+
+## Known issues / notes
+
+- Outlook ICS parser required manual unescaping of `\,` and `\;` characters (standard ICS escaping). Fixed in `outlook/route.ts` via `.replace()` after parsing.
+- Google events route fetches a 90-day window; Outlook route currently returns the full feed unfiltered. If performance becomes an issue, add a date range filter to the Outlook route too.
+- No error handling yet for expired/revoked Google refresh tokens beyond a generic failed fetch. Would need to detect a 401 and redirect back to `/api/google/login`.
+
+## Next milestones
+
+- Phase 2: weekly calendar grid view
+- Phase 3: conflict detection between Outlook and Google events
+- Phase 4: AI scheduling suggestions, natural language search
+- Phase 5: production deployment (will require moving off ICS + local `.tokens.json` toward a database-backed token store, since production can't rely on local disk persistence)
