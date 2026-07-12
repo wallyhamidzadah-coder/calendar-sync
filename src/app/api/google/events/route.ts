@@ -64,6 +64,7 @@ export async function GET() {
   const data = await calRes.json();
 
   const events = (data.items || []).map((e: any) => ({
+    id: e.id,
     summary: e.summary || '(No title)',
     start: e.start?.dateTime || e.start?.date,
     end: e.end?.dateTime || e.end?.date,
