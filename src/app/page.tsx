@@ -53,6 +53,7 @@ export default function Home() {
   const [outlookCount, setOutlookCount] = useState(0);
   const [googleCount, setGoogleCount] = useState(0);
   const [view, setView] = useState<'month' | 'week' | 'day' | 'agenda'>('week');
+  const [date, setDate] = useState(new Date());
 
   function loadEvents() {
     setLoading(true);
@@ -63,25 +64,49 @@ export default function Home() {
       .then(([outlookData, googleData]) => {
         const outlookEvents =
           outlookData.status === 'success'
-            ? outlookData.cleanedEvents.map((e: any) => ({
-                title: e.summary,
-                start: new Date(e.start),
-                end: new Date(e.end),
-                location: e.location,
-                source: 'Outlook' as const,
-              }))
+            ? outlookData.cleanedEvents
+                .map((e: any) => {
+                  const start = e.start ? new Date(e.start) : null;
+                  const end = e.end ? new Date(e.end) : null;
+                  
+                  // Skip events with invalid dates
+                  if (!start || !end || isNaN(start.getTime()) || isNaN(end.getTime())) {
+                    return null;
+                  }
+                  
+                  return {
+                    title: e.summary,
+                    start,
+                    end,
+                    location: e.location,
+                    source: 'Outlook' as const,
+                  };
+                })
+                .filter((e): e is CalendarEvent => e !== null)
             : [];
 
         const googleEvents =
           googleData.status === 'success'
-            ? googleData.events.map((e: any) => ({
-                id: e.id,
-                title: e.summary,
-                start: new Date(e.start),
-                end: new Date(e.end),
-                location: e.location,
-                source: 'Google' as const,
-              }))
+            ? googleData.events
+                .map((e: any) => {
+                  const start = e.start ? new Date(e.start) : null;
+                  const end = e.end ? new Date(e.end) : null;
+                  
+                  // Skip events with invalid dates
+                  if (!start || !end || isNaN(start.getTime()) || isNaN(end.getTime())) {
+                    return null;
+                  }
+                  
+                  return {
+                    id: e.id,
+                    title: e.summary,
+                    start,
+                    end,
+                    location: e.location,
+                    source: 'Google' as const,
+                  };
+                })
+                .filter((e): e is CalendarEvent => e !== null)
             : [];
 
         if (outlookData.status !== 'success') setError((p) => p || outlookData.error);
@@ -343,6 +368,8 @@ export default function Home() {
           endAccessor="end"
           view={view}
           onView={setView}
+          date={date}
+          onNavigate={setDate}
           views={['month', 'week', 'day', 'agenda']}
           selectable
           eventPropGetter={(event: CalendarEvent) => ({
