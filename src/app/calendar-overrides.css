@@ -177,6 +177,16 @@
   line-height: 1.35;
 }
 
+/* Let short events show more of the title without changing event sizing/stacking logic. */
+.rbc-day-slot .rbc-event {
+  white-space: normal;
+}
+
+.rbc-day-slot .rbc-event .rbc-event-content {
+  white-space: normal;
+  overflow-wrap: break-word;
+}
+
 .rbc-show-more {
   color: #9bb0d0;
   font-size: 12px;
