@@ -6,7 +6,25 @@ type CalendarEvent = {
   start: string | null;
   end: string | null;
   location: string | null;
+  description: string | null;
+  attendees: string[];
+  hasOtherAttendees: boolean;
 };
+
+const MY_EMAIL = "wally.hamidzadah.2027@marshall.usc.edu";
+
+function parseAttendeeEmail(line: string): string | null {
+  const match = line.match(/mailto:([^;:\s]+)/i);
+  return match?.[1]?.trim().toLowerCase() || null;
+}
+
+function computeHasOtherAttendees(attendees: string[]) {
+  const me = MY_EMAIL.toLowerCase();
+  return attendees.some((email) => {
+    const normalized = (email || "").trim().toLowerCase();
+    return normalized.length > 0 && normalized !== me;
+  });
+}
 
 function unfoldLines(raw: string) {
   return raw.replace(/\r?\n[ \t]/g, "");
@@ -67,6 +85,8 @@ function parseEvents(raw: string): CalendarEvent[] {
         start: null,
         end: null,
         location: null,
+        description: null,
+        attendees: [] as string[],
         rrule: null,
         dtstart: null,
         dtend: null,
@@ -94,7 +114,12 @@ function parseEvents(raw: string): CalendarEvent[] {
     if (line.startsWith("UID:")) current.uid = line.slice(4).trim();
     else if (line.startsWith("SUMMARY:")) current.summary = line.slice(8).trim();
     else if (line.startsWith("LOCATION:")) current.location = line.slice(9).trim() || null;
+    else if (line.startsWith("DESCRIPTION")) current.description = (line.split(":").pop() ?? "").trim() || null;
     else if (line.startsWith("STATUS:")) current.status = line.slice(7).trim();
+    else if (line.startsWith("ATTENDEE")) {
+      const attendeeEmail = parseAttendeeEmail(line);
+      if (attendeeEmail) current.attendees.push(attendeeEmail);
+    }
     else if (line.startsWith("DTSTART")) {
       const value = line.split(":").pop() ?? "";
       current.dtstart = value;
@@ -169,11 +194,15 @@ function parseEvents(raw: string): CalendarEvent[] {
 
   // Add non-recurring events
   for (const event of nonRecurringEvents) {
+    const attendees = Array.isArray(event.attendees) ? event.attendees : [];
     expandedEvents.push({
       summary: event.summary,
       start: event.start,
       end: event.end,
       location: event.location,
+      description: event.description ?? null,
+      attendees,
+      hasOtherAttendees: computeHasOtherAttendees(attendees),
     });
   }
 
@@ -253,6 +282,12 @@ function parseEvents(raw: string): CalendarEvent[] {
 
         // If override exists and is not cancelled, use it (replaces the generated occurrence)
         if (useOverride) {
+          const overrideAttendees =
+            Array.isArray(useOverride.attendees) && useOverride.attendees.length > 0
+              ? useOverride.attendees
+              : Array.isArray(event.attendees)
+                ? event.attendees
+                : [];
           if (process.env.NODE_ENV !== 'production' && skippedCount === 0) {
             console.log(`    Using past override for ${event.summary} on ${occurrenceDateStr}: start=${useOverride.start}`);
           }
@@ -261,15 +296,22 @@ function parseEvents(raw: string): CalendarEvent[] {
             start: useOverride.start,
             end: useOverride.end,
             location: useOverride.location,
+            description: useOverride.description ?? event.description ?? null,
+            attendees: overrideAttendees,
+            hasOtherAttendees: computeHasOtherAttendees(overrideAttendees),
           });
         } else {
           // Use the generated occurrence
           const occurrenceEnd = new Date(occurrence.getTime() + durationMs);
+          const attendees = Array.isArray(event.attendees) ? event.attendees : [];
           expandedEvents.push({
             summary: event.summary,
             start: occurrence.toISOString(),
             end: occurrenceEnd.toISOString(),
             location: event.location,
+            description: event.description ?? null,
+            attendees,
+            hasOtherAttendees: computeHasOtherAttendees(attendees),
           });
         }
       }
@@ -284,6 +326,9 @@ function parseEvents(raw: string): CalendarEvent[] {
         start: event.start,
         end: event.end,
         location: event.location,
+        description: event.description ?? null,
+        attendees: Array.isArray(event.attendees) ? event.attendees : [],
+        hasOtherAttendees: computeHasOtherAttendees(Array.isArray(event.attendees) ? event.attendees : []),
       });
     }
   }
@@ -320,6 +365,7 @@ export async function GET() {
     ...e,
     summary: e.summary?.replace(/\\,/g, ',').replace(/\\;/g, ';').replace(/\\\\/g, '\\'),
     location: e.location?.replace(/\\,/g, ',').replace(/\\;/g, ';').replace(/\\\\/g, '\\') ?? null,
+    description: e.description?.replace(/\\,/g, ',').replace(/\\;/g, ';').replace(/\\\\/g, '\\') ?? null,
   }));
 
   return NextResponse.json({

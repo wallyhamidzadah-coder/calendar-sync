@@ -17,6 +17,10 @@ const localizer = dateFnsLocalizer({
 
 const OUTLOOK_COLOR = '#d83b01';
 const GOOGLE_COLOR = '#1a73e8';
+const EVENT_PURPLE = '#8b5cf6';
+const EVENT_GOOGLE_BLUE = '#1a73e8';
+const EVENT_OUTLOOK_GREEN = '#0e7c3f';
+const MY_EMAIL = 'wally.hamidzadah.2027@marshall.usc.edu';
 
 type CalendarEvent = {
   id?: string;
@@ -24,8 +28,58 @@ type CalendarEvent = {
   start: Date;
   end: Date;
   location: string | null;
+  description?: string | null;
+  attendees?: string[] | null;
+  hasOtherAttendees?: boolean;
   source: 'Outlook' | 'Google';
 };
+
+function hasMeetingLink(event: CalendarEvent) {
+  const text = `${event.location ?? ''}\n${event.description ?? ''}`.trim();
+  if (!text) return false;
+
+  const urlMatches = text.match(/https:\/\/[^\s)>'"]+/gi) || [];
+  for (const rawUrl of urlMatches) {
+    const url = rawUrl.replace(/[),.;]+$/g, '').trim();
+
+    try {
+      const parsed = new URL(url);
+      const host = parsed.hostname.toLowerCase();
+
+      if (
+        host === 'zoom.us' ||
+        host.endsWith('.zoom.us') ||
+        host === 'teams.microsoft.com' ||
+        host.endsWith('.teams.microsoft.com') ||
+        host === 'meet.google.com' ||
+        host.endsWith('.meet.google.com')
+      ) {
+        return true;
+      }
+    } catch {
+      // Ignore malformed URLs and continue scanning.
+    }
+
+    if (url.toLowerCase().startsWith('https://')) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
+function hasOtherAttendees(event: CalendarEvent) {
+  if (typeof event.hasOtherAttendees === 'boolean') {
+    return event.hasOtherAttendees;
+  }
+
+  const attendees = event.attendees ?? [];
+  const me = MY_EMAIL.toLowerCase();
+  return attendees.some((email) => {
+    const normalized = (email || '').trim().toLowerCase();
+    return normalized.length > 0 && normalized !== me;
+  });
+}
 
 function toLocalInputValue(date: Date) {
   const offset = date.getTimezoneOffset();
@@ -79,6 +133,10 @@ export default function Home() {
                     start,
                     end,
                     location: e.location,
+                    description: e.description ?? null,
+                    attendees: Array.isArray(e.attendees) ? e.attendees : null,
+                    hasOtherAttendees:
+                      typeof e.hasOtherAttendees === 'boolean' ? e.hasOtherAttendees : undefined,
                     source: 'Outlook' as const,
                   };
                 })
@@ -103,6 +161,10 @@ export default function Home() {
                     start,
                     end,
                     location: e.location,
+                    description: e.description ?? null,
+                    attendees: Array.isArray(e.attendees) ? e.attendees : null,
+                    hasOtherAttendees:
+                      typeof e.hasOtherAttendees === 'boolean' ? e.hasOtherAttendees : undefined,
                     source: 'Google' as const,
                   };
                 })
@@ -375,7 +437,12 @@ export default function Home() {
           selectable
           eventPropGetter={(event: CalendarEvent) => ({
             style: {
-              backgroundColor: event.source === 'Outlook' ? OUTLOOK_COLOR : GOOGLE_COLOR,
+              backgroundColor:
+                hasMeetingLink(event) || hasOtherAttendees(event)
+                  ? EVENT_PURPLE
+                  : event.source === 'Google'
+                    ? EVENT_GOOGLE_BLUE
+                    : EVENT_OUTLOOK_GREEN,
               border: 'none',
             },
           })}

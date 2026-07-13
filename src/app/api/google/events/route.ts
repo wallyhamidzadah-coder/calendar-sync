@@ -2,6 +2,8 @@ import { NextResponse } from 'next/server';
 import fs from 'fs';
 import path from 'path';
 
+const MY_EMAIL = 'wally.hamidzadah.2027@marshall.usc.edu';
+
 export async function GET() {
   const tokenPath = path.join(process.cwd(), '.tokens.json');
 
@@ -63,13 +65,28 @@ export async function GET() {
 
   const data = await calRes.json();
 
-  const events = (data.items || []).map((e: any) => ({
-    id: e.id,
-    summary: e.summary || '(No title)',
-    start: e.start?.dateTime || e.start?.date,
-    end: e.end?.dateTime || e.end?.date,
-    location: e.location || null,
-  }));
+  const events = (data.items || []).map((e: any) => {
+    const attendees = Array.isArray(e.attendees)
+      ? e.attendees
+          .map((a: any) => (a?.email ? String(a.email).trim().toLowerCase() : null))
+          .filter((email: string | null): email is string => Boolean(email))
+      : [];
+
+    const hasOtherAttendees = attendees.some(
+      (email: string) => email.toLowerCase() !== MY_EMAIL.toLowerCase()
+    );
+
+    return {
+      id: e.id,
+      summary: e.summary || '(No title)',
+      start: e.start?.dateTime || e.start?.date,
+      end: e.end?.dateTime || e.end?.date,
+      location: e.location || null,
+      description: e.description || null,
+      attendees,
+      hasOtherAttendees,
+    };
+  });
 
   return NextResponse.json({ status: 'success', count: events.length, events });
 }
