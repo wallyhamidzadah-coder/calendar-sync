@@ -445,6 +445,21 @@ export default function Home() {
               Outlook ({outlookCount})
             </button>
             <button
+              style={toggleChip(showGoogle, GOOGLE_COLOR)}
+              onClick={() => setShowGoogle((v) => !v)}
+            >
+              <span
+                style={{
+                  width: 8,
+                  height: 8,
+                  borderRadius: '50%',
+                  background: GOOGLE_COLOR,
+                  display: 'inline-block',
+                }}
+              />
+              Google ({googleCount})
+            </button>
+            <button
               type="button"
               onClick={() => loadEvents()}
               title="Refresh Outlook feed"
@@ -468,21 +483,6 @@ export default function Home() {
               synced {formatRelativeSync(outlookSyncedAt, relativeNow)}
             </span>
           </div>
-          <button
-            style={toggleChip(showGoogle, GOOGLE_COLOR)}
-            onClick={() => setShowGoogle((v) => !v)}
-          >
-            <span
-              style={{
-                width: 8,
-                height: 8,
-                borderRadius: '50%',
-                background: GOOGLE_COLOR,
-                display: 'inline-block',
-              }}
-            />
-            Google ({googleCount})
-          </button>
           <input
             type="text"
             placeholder="Search events..."
