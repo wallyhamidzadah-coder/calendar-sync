@@ -21,6 +21,7 @@ const EVENT_PURPLE = '#8b5cf6';
 const EVENT_GOOGLE_BLUE = '#1a73e8';
 const EVENT_OUTLOOK_GREEN = '#0e7c3f';
 const MY_EMAIL = 'wally.hamidzadah.2027@marshall.usc.edu';
+const SYNC_INTERVAL_MS = 10 * 60 * 1000;
 
 type CalendarEvent = {
   id?: string;
@@ -128,9 +129,12 @@ export default function Home() {
   const [view, setView] = useState<'month' | 'week' | 'day' | 'agenda'>('week');
   const [date, setDate] = useState(new Date());
 
-  function loadEvents() {
-    setLoading(true);
-    setOutlookSyncedAt(null);
+  function loadEvents(options?: { background?: boolean }) {
+    const isBackgroundSync = options?.background === true;
+    if (!isBackgroundSync) {
+      setLoading(true);
+    }
+
     Promise.all([
       fetch('/api/outlook').then((res) => res.json()),
       fetch('/api/google/events').then((res) => res.json()),
@@ -198,16 +202,28 @@ export default function Home() {
         setGoogleCount(googleEvents.length);
         setOutlookSyncedAt(typeof outlookData?.syncedAt === 'string' ? outlookData.syncedAt : null);
         setEvents([...outlookEvents, ...googleEvents]);
-        setLoading(false);
+        if (!isBackgroundSync) {
+          setLoading(false);
+        }
       })
       .catch((err) => {
         setError(err.message);
-        setLoading(false);
+        if (!isBackgroundSync) {
+          setLoading(false);
+        }
       });
   }
 
   useEffect(() => {
     loadEvents();
+  }, []);
+
+  useEffect(() => {
+    const interval = window.setInterval(() => {
+      loadEvents({ background: true });
+    }, SYNC_INTERVAL_MS);
+
+    return () => window.clearInterval(interval);
   }, []);
 
   useEffect(() => {
