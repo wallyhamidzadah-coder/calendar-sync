@@ -535,17 +535,18 @@ export default function Home() {
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
-          marginBottom: 14,
+          marginBottom: 16,
           flexWrap: 'wrap',
           gap: 12,
           background: '#1a2230',
           border: '1px solid #2a3342',
+          borderBottom: '1px solid #3a4a63',
           borderRadius: 10,
-          padding: 12,
+          padding: '14px 14px 12px',
           boxShadow: '0 10px 30px rgba(0,0,0,0.24)',
         }}
       >
-        <h1 style={{ fontSize: 24, fontWeight: 650, letterSpacing: '-0.01em', margin: 0 }}>Calendar</h1>
+        <h1 style={{ fontSize: 30, fontWeight: 720, letterSpacing: '-0.02em', margin: 0 }}>Calendar</h1>
         <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
             <button
