@@ -22,9 +22,9 @@ const DragAndDropCalendar = withDragAndDrop<CalendarEvent, object>(Calendar);
 
 const OUTLOOK_COLOR = '#d83b01';
 const GOOGLE_COLOR = '#1a73e8';
-const EVENT_PURPLE = '#6f62b5';
+const EVENT_PURPLE = '#8b5cf6';
 const EVENT_GOOGLE_BLUE = '#4f78b8';
-const EVENT_OUTLOOK_GREEN = '#3f8c6f';
+const EVENT_OUTLOOK_GREEN = '#0e7c3f';
 const COLOR_SWATCHES = ['#8b5cf6', '#1a73e8', '#0e7c3f', '#dc2626', '#f97316', '#eab308'] as const;
 const MY_EMAIL = 'wally.hamidzadah.2027@marshall.usc.edu';
 const SYNC_INTERVAL_MS = 10 * 60 * 1000;
