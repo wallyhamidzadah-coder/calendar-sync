@@ -231,6 +231,27 @@ export default function Home() {
     return () => window.clearInterval(interval);
   }, []);
 
+  useEffect(() => {
+    function handleKeyDown(e: KeyboardEvent) {
+      const activeTag = document.activeElement?.tagName;
+      if (activeTag === 'INPUT' || activeTag === 'TEXTAREA') {
+        return;
+      }
+
+      const key = e.key.toLowerCase();
+      if (key === 'm') {
+        setView(Views.MONTH);
+      } else if (key === 'w') {
+        setView(Views.WORK_WEEK);
+      } else if (key === 'd') {
+        setView(Views.DAY);
+      }
+    }
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
+
   if (loading) return <main style={{ padding: 40 }}>Loading events...</main>;
 
   const filteredEvents = events.filter((e) => {
