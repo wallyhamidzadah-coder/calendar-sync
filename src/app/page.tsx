@@ -132,6 +132,7 @@ export default function Home() {
   const filteredEvents = events.filter((e) => {
     if (e.source === 'Outlook' && !showOutlook) return false;
     if (e.source === 'Google' && !showGoogle) return false;
+    if (e.title.trim().toLowerCase() === 'home') return false;
     if (searchTerm) {
       const t = searchTerm.toLowerCase();
       return (
