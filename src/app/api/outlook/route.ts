@@ -155,41 +155,9 @@ function parseEvents(raw: string): CalendarEvent[] {
     }
   }
 
-  // Debug logging
-  if (process.env.NODE_ENV !== 'production') {
-    console.log(`[parseEvents] Raw events: ${rawEvents.length}`);
-    console.log(`[parseEvents] Recurring: ${recurringMap.size}, Non-recurring: ${nonRecurringEvents.length}, Overrides: ${recurrenceOverrides.size}`);
-    console.log(`[parseEvents] RRULE lines: ${rruleInsideVevent} inside VEVENT, ${rruleOutsideVevent} outside VEVENT`);
-    
-    const eventsWithRrule = rawEvents.filter(e => e.rrule);
-    console.log(`[parseEvents] Events with RRULE field: ${eventsWithRrule.length}`);
-    
-    // Show recurring event UIDs
-    console.log(`[parseEvents] Recurring event UIDs:`);
-    for (const [key, event] of recurringMap.entries()) {
-      console.log(`  - "${event.summary}": UID="${event.uid}"`);
-    }
-    
-    // Show override UIDs and dates
-    console.log(`[parseEvents] Override UIDs and dates:`);
-    for (const [key, override] of recurrenceOverrides.entries()) {
-      console.log(`  - "${override.summary}": ${key} status=${override.status}`);
-    }
-    
-    // Show override statuses - count CANCELLED vs others
-    let cancelledCount = 0;
-    for (const override of recurrenceOverrides.values()) {
-      if (override.status === "CANCELLED") cancelledCount++;
-    }
-    console.log(`[parseEvents] Overrides: ${recurrenceOverrides.size} total, ${cancelledCount} CANCELLED`);
-    
-    // Show EXDATE info
-    for (const event of recurringMap.values()) {
-      if (event.exdates.length > 0) {
-        console.log(`[parseEvents] "${event.summary}" has ${event.exdates.length} EXDATE entries: ${event.exdates.join(", ")}`);
-      }
-    }
-  }
+  console.log(
+    `[parseEvents] Raw events parsed: ${rawEvents.length} | recurring: ${recurringMap.size} | non-recurring: ${nonRecurringEvents.length} | overrides: ${recurrenceOverrides.size}`
+  );
 
   // Expand recurring events
   const expandedEvents: CalendarEvent[] = [];
@@ -320,6 +288,7 @@ function parseEvents(raw: string): CalendarEvent[] {
     }
   }
 
+  console.log(`[parseEvents] Final total events after expansion: ${expandedEvents.length}`);
   return expandedEvents;
 }
 
