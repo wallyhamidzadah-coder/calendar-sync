@@ -87,6 +87,23 @@ function toLocalInputValue(date: Date) {
   return local.toISOString().slice(0, 16);
 }
 
+function formatRelativeSync(isoTimestamp: string | null, now: Date) {
+  if (!isoTimestamp) return 'syncing...';
+
+  const diffMs = now.getTime() - new Date(isoTimestamp).getTime();
+  if (diffMs < 0) return 'just synced';
+
+  const minutes = Math.floor(diffMs / 60000);
+  if (minutes < 1) return 'just now';
+  if (minutes < 60) return `${minutes} min ago`;
+
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `${hours} hr${hours === 1 ? '' : 's'} ago`;
+
+  const days = Math.floor(hours / 24);
+  return `${days} day${days === 1 ? '' : 's'} ago`;
+}
+
 export default function Home() {
   const [events, setEvents] = useState<CalendarEvent[]>([]);
   const [loading, setLoading] = useState(true);
@@ -106,11 +123,14 @@ export default function Home() {
   const [showGoogle, setShowGoogle] = useState(true);
   const [outlookCount, setOutlookCount] = useState(0);
   const [googleCount, setGoogleCount] = useState(0);
+  const [outlookSyncedAt, setOutlookSyncedAt] = useState<string | null>(null);
+  const [relativeNow, setRelativeNow] = useState(new Date());
   const [view, setView] = useState<'month' | 'week' | 'day' | 'agenda'>('week');
   const [date, setDate] = useState(new Date());
 
   function loadEvents() {
     setLoading(true);
+    setOutlookSyncedAt(null);
     Promise.all([
       fetch('/api/outlook').then((res) => res.json()),
       fetch('/api/google/events').then((res) => res.json()),
@@ -176,6 +196,7 @@ export default function Home() {
 
         setOutlookCount(outlookEvents.length);
         setGoogleCount(googleEvents.length);
+        setOutlookSyncedAt(typeof outlookData?.syncedAt === 'string' ? outlookData.syncedAt : null);
         setEvents([...outlookEvents, ...googleEvents]);
         setLoading(false);
       })
@@ -187,6 +208,11 @@ export default function Home() {
 
   useEffect(() => {
     loadEvents();
+  }, []);
+
+  useEffect(() => {
+    const interval = window.setInterval(() => setRelativeNow(new Date()), 30000);
+    return () => window.clearInterval(interval);
   }, []);
 
   if (loading) return <main style={{ padding: 40 }}>Loading events...</main>;
@@ -356,21 +382,46 @@ export default function Home() {
       >
         <h1 style={{ fontSize: 22 }}>Calendar</h1>
         <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
-          <button
-            style={toggleChip(showOutlook, OUTLOOK_COLOR)}
-            onClick={() => setShowOutlook((v) => !v)}
-          >
-            <span
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+            <button
+              style={toggleChip(showOutlook, OUTLOOK_COLOR)}
+              onClick={() => setShowOutlook((v) => !v)}
+            >
+              <span
+                style={{
+                  width: 8,
+                  height: 8,
+                  borderRadius: '50%',
+                  background: OUTLOOK_COLOR,
+                  display: 'inline-block',
+                }}
+              />
+              Outlook ({outlookCount})
+            </button>
+            <button
+              type="button"
+              onClick={() => loadEvents()}
+              title="Refresh Outlook feed"
               style={{
-                width: 8,
-                height: 8,
-                borderRadius: '50%',
-                background: OUTLOOK_COLOR,
-                display: 'inline-block',
+                display: 'inline-flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                width: 30,
+                height: 30,
+                borderRadius: 15,
+                border: '1px solid #3a3a3a',
+                background: '#1a1a1a',
+                color: '#d5d5d5',
+                cursor: 'pointer',
+                fontSize: 13,
               }}
-            />
-            Outlook ({outlookCount})
-          </button>
+            >
+              ↻
+            </button>
+            <span style={{ fontSize: 12, color: '#999' }}>
+              synced {formatRelativeSync(outlookSyncedAt, relativeNow)}
+            </span>
+          </div>
           <button
             style={toggleChip(showGoogle, GOOGLE_COLOR)}
             onClick={() => setShowGoogle((v) => !v)}

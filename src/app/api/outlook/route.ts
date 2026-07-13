@@ -354,6 +354,7 @@ export async function GET() {
 
   const raw = await res.text();
   const events = parseEvents(raw);
+  const syncedAt = new Date().toISOString();
   
   // Debug: count all RRULE lines in raw ICS (with or without parameters)
   const lines = unfoldLines(raw).split(/\r?\n/);
@@ -371,6 +372,7 @@ export async function GET() {
   return NextResponse.json({
     status: "success",
     count: events.length,
+    syncedAt,
     cleanedEvents,
   });
 }
