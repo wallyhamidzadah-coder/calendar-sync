@@ -99,7 +99,7 @@ function formatRelativeSync(isoTimestamp: string | null, now: Date) {
   if (!isoTimestamp) return 'syncing...';
 
   const diffMs = now.getTime() - new Date(isoTimestamp).getTime();
-  if (diffMs < 0) return 'just synced';
+  if (diffMs < 0) return 'just now';
 
   const minutes = Math.floor(diffMs / 60000);
   if (minutes < 1) return 'just now';
@@ -666,25 +666,29 @@ export default function Home() {
           }
           onEventDrop={handleEventDrop}
           onEventResize={handleEventResize}
-          eventPropGetter={(event: CalendarEvent) => ({
-            style: {
-              ['--event-accent' as string]:
-                event.customColor
-                  ? event.customColor
-                  : hasMeetingLink(event) || hasOtherAttendees(event)
-                    ? EVENT_PURPLE
-                    : event.source === 'Google'
-                      ? EVENT_GOOGLE_BLUE
-                      : EVENT_OUTLOOK_GREEN,
-              backgroundColor: 'transparent',
-              cursor:
-                isDnDView && event.source === 'Outlook'
-                  ? 'not-allowed'
-                  : isDnDView && event.source === 'Google'
-                    ? 'grab'
-                    : undefined,
-            },
-          })}
+          eventPropGetter={(event: CalendarEvent) => {
+            const meetingLink = hasMeetingLink(event);
+            const hasOthers = hasOtherAttendees(event);
+            const accentColor = event.customColor
+              ? event.customColor
+              : meetingLink || hasOthers
+                ? EVENT_PURPLE
+                : event.source === 'Google'
+                  ? EVENT_GOOGLE_BLUE
+                  : EVENT_OUTLOOK_GREEN;
+
+            return {
+              style: {
+                ['--event-accent' as string]: accentColor,
+                cursor:
+                  isDnDView && event.source === 'Outlook'
+                    ? 'not-allowed'
+                    : isDnDView && event.source === 'Google'
+                      ? 'grab'
+                      : undefined,
+              },
+            };
+          }}
           onSelectEvent={(event: CalendarEvent) => setSelectedEvent(event)}
           onSelectSlot={(slot: SlotInfo) => openCreateForm(slot.start, slot.end)}
         />
