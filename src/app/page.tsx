@@ -2,8 +2,12 @@
 
 import { useEffect, useState } from 'react';
 import { Calendar, dateFnsLocalizer, SlotInfo, Views, type View } from 'react-big-calendar';
+import withDragAndDrop, {
+  type EventInteractionArgs,
+} from 'react-big-calendar/lib/addons/dragAndDrop';
 import { format, parse, startOfWeek, getDay } from 'date-fns';
 import 'react-big-calendar/lib/css/react-big-calendar.css';
+import 'react-big-calendar/lib/addons/dragAndDrop/styles.css';
 import './calendar-overrides.css';
 
 const locales = {};
@@ -14,6 +18,7 @@ const localizer = dateFnsLocalizer({
   getDay,
   locales,
 });
+const DragAndDropCalendar = withDragAndDrop<CalendarEvent, object>(Calendar);
 
 const OUTLOOK_COLOR = '#d83b01';
 const GOOGLE_COLOR = '#1a73e8';
@@ -340,6 +345,69 @@ export default function Home() {
     }
   }
 
+  async function persistEventTimeChange(event: CalendarEvent, start: Date, end: Date) {
+    const res = await fetch('/api/google/update', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        id: event.id,
+        summary: event.title,
+        start,
+        end,
+        location: event.location || '',
+      }),
+    });
+
+    const data = await res.json();
+    if (data.status !== 'success') {
+      throw new Error(data.error || 'Update failed');
+    }
+  }
+
+  async function handleEventTimeChange({
+    event,
+    start,
+    end,
+  }: EventInteractionArgs<CalendarEvent>) {
+    if (event.source !== 'Google' || !event.id) {
+      return;
+    }
+
+    const nextStart = new Date(start);
+    const nextEnd = new Date(end);
+    const previousStart = event.start;
+    const previousEnd = event.end;
+
+    setEvents((prev) =>
+      prev.map((e) =>
+        e.source === 'Google' && e.id === event.id
+          ? { ...e, start: nextStart, end: nextEnd }
+          : e
+      )
+    );
+
+    try {
+      await persistEventTimeChange(event, nextStart, nextEnd);
+    } catch (err: any) {
+      setEvents((prev) =>
+        prev.map((e) =>
+          e.source === 'Google' && e.id === event.id
+            ? { ...e, start: previousStart, end: previousEnd }
+            : e
+        )
+      );
+      setError(err.message || 'Failed to reschedule event');
+    }
+  }
+
+  function handleEventDrop(args: EventInteractionArgs<CalendarEvent>) {
+    void handleEventTimeChange(args);
+  }
+
+  function handleEventResize(args: EventInteractionArgs<CalendarEvent>) {
+    void handleEventTimeChange(args);
+  }
+
   const inputStyle: React.CSSProperties = {
     width: '100%',
     padding: '8px 10px',
@@ -404,6 +472,7 @@ export default function Home() {
   });
 
   const selectedEventMeetingLink = selectedEvent ? hasMeetingLink(selectedEvent) : null;
+  const isDnDView = view === Views.WORK_WEEK || view === Views.DAY;
 
   return (
     <main
@@ -523,7 +592,7 @@ export default function Home() {
       )}
 
       <div style={{ height: '85vh' }}>
-        <Calendar
+        <DragAndDropCalendar
           localizer={localizer}
           events={filteredEvents}
           startAccessor="start"
@@ -535,6 +604,15 @@ export default function Home() {
           views={[Views.MONTH, Views.WORK_WEEK, Views.DAY, Views.AGENDA]}
           messages={{ work_week: 'Week' }}
           selectable
+          resizable
+          draggableAccessor={(event: CalendarEvent) =>
+            isDnDView && event.source === 'Google'
+          }
+          resizableAccessor={(event: CalendarEvent) =>
+            isDnDView && event.source === 'Google'
+          }
+          onEventDrop={handleEventDrop}
+          onEventResize={handleEventResize}
           eventPropGetter={(event: CalendarEvent) => ({
             style: {
               backgroundColor:
@@ -544,6 +622,12 @@ export default function Home() {
                     ? EVENT_GOOGLE_BLUE
                     : EVENT_OUTLOOK_GREEN,
               border: 'none',
+              cursor:
+                isDnDView && event.source === 'Outlook'
+                  ? 'not-allowed'
+                  : isDnDView && event.source === 'Google'
+                    ? 'grab'
+                    : undefined,
             },
           })}
           onSelectEvent={(event: CalendarEvent) => setSelectedEvent(event)}
