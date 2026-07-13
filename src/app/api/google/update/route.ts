@@ -40,7 +40,7 @@ export async function PUT(req: Request) {
   }
 
   const body = await req.json();
-  const { id, summary, start, end, location } = body;
+  const { id, summary, start, end, location, customColor } = body;
 
   if (!id || !summary || !start || !end) {
     return NextResponse.json(
@@ -64,6 +64,14 @@ export async function PUT(req: Request) {
         location: location || undefined,
         start: { dateTime: new Date(start).toISOString() },
         end: { dateTime: new Date(end).toISOString() },
+        extendedProperties:
+          typeof customColor === 'string' && customColor.trim().length > 0
+            ? {
+                private: {
+                  customColor: customColor.trim(),
+                },
+              }
+            : undefined,
       }),
     }
   );

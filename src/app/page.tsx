@@ -25,6 +25,7 @@ const GOOGLE_COLOR = '#1a73e8';
 const EVENT_PURPLE = '#8b5cf6';
 const EVENT_GOOGLE_BLUE = '#1a73e8';
 const EVENT_OUTLOOK_GREEN = '#0e7c3f';
+const COLOR_SWATCHES = ['#8b5cf6', '#1a73e8', '#0e7c3f', '#dc2626', '#f97316', '#eab308'] as const;
 const MY_EMAIL = 'wally.hamidzadah.2027@marshall.usc.edu';
 const SYNC_INTERVAL_MS = 10 * 60 * 1000;
 
@@ -37,6 +38,7 @@ type CalendarEvent = {
   description?: string | null;
   attendees?: string[] | null;
   hasOtherAttendees?: boolean;
+  customColor?: string | null;
   source: 'Outlook' | 'Google';
 };
 
@@ -123,6 +125,7 @@ export default function Home() {
     end: '',
     location: '',
   });
+  const [createCustomColor, setCreateCustomColor] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
   const [saving, setSaving] = useState(false);
   const [showOutlook, setShowOutlook] = useState(true);
@@ -166,6 +169,7 @@ export default function Home() {
                     attendees: Array.isArray(e.attendees) ? e.attendees : null,
                     hasOtherAttendees:
                       typeof e.hasOtherAttendees === 'boolean' ? e.hasOtherAttendees : undefined,
+                    customColor: typeof e.customColor === 'string' ? e.customColor : null,
                     source: 'Outlook' as const,
                   };
                 })
@@ -194,6 +198,7 @@ export default function Home() {
                     attendees: Array.isArray(e.attendees) ? e.attendees : null,
                     hasOtherAttendees:
                       typeof e.hasOtherAttendees === 'boolean' ? e.hasOtherAttendees : undefined,
+                    customColor: typeof e.customColor === 'string' ? e.customColor : null,
                     source: 'Google' as const,
                   };
                 })
@@ -293,6 +298,7 @@ export default function Home() {
       location: '',
     });
     setSelectedEvent(null);
+    setCreateCustomColor(null);
     setCreating(true);
   }
 
@@ -303,7 +309,10 @@ export default function Home() {
         const res = await fetch('/api/google/create', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(formData),
+          body: JSON.stringify({
+            ...formData,
+            customColor: createCustomColor || undefined,
+          }),
         });
         const data = await res.json();
         if (data.status !== 'success') throw new Error(data.error || 'Create failed');
@@ -311,7 +320,11 @@ export default function Home() {
         const res = await fetch('/api/google/update', {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ id: selectedEvent.id, ...formData }),
+          body: JSON.stringify({
+            id: selectedEvent.id,
+            ...formData,
+            customColor: selectedEvent.customColor || undefined,
+          }),
         });
         const data = await res.json();
         if (data.status !== 'success') throw new Error(data.error || 'Update failed');
@@ -355,6 +368,7 @@ export default function Home() {
         start,
         end,
         location: event.location || '',
+        customColor: event.customColor || undefined,
       }),
     });
 
@@ -616,7 +630,9 @@ export default function Home() {
           eventPropGetter={(event: CalendarEvent) => ({
             style: {
               backgroundColor:
-                hasMeetingLink(event) || hasOtherAttendees(event)
+                event.customColor
+                  ? event.customColor
+                  : hasMeetingLink(event) || hasOtherAttendees(event)
                   ? EVENT_PURPLE
                   : event.source === 'Google'
                     ? EVENT_GOOGLE_BLUE
@@ -698,6 +714,51 @@ export default function Home() {
                   value={formData.location}
                   onChange={(e) => setFormData({ ...formData, location: e.target.value })}
                 />
+                {creating && (
+                  <>
+                    <label style={labelStyle}>Color (optional)</label>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
+                      <button
+                        type="button"
+                        onClick={() => setCreateCustomColor(null)}
+                        style={{
+                          padding: '4px 10px',
+                          background: createCustomColor ? '#2a2a2a' : '#1f2937',
+                          border: createCustomColor ? '1px solid #3a3a3a' : '1px solid #60a5fa',
+                          color: '#d1d5db',
+                          borderRadius: 12,
+                          fontSize: 11,
+                          cursor: 'pointer',
+                        }}
+                        title="Use automatic color rules"
+                      >
+                        Auto
+                      </button>
+                      {COLOR_SWATCHES.map((color) => {
+                        const selected = createCustomColor === color;
+                        return (
+                          <button
+                            key={color}
+                            type="button"
+                            onClick={() => setCreateCustomColor(color)}
+                            title={color}
+                            aria-label={'Pick color ' + color}
+                            style={{
+                              width: 18,
+                              height: 18,
+                              borderRadius: '50%',
+                              border: selected ? '2px solid #f5f5f5' : '1px solid #3a3a3a',
+                              outline: selected ? '1px solid #111' : 'none',
+                              background: color,
+                              cursor: 'pointer',
+                              padding: 0,
+                            }}
+                          />
+                        );
+                      })}
+                    </div>
+                  </>
+                )}
                 <div style={{ marginTop: 8 }}>
                   <button style={buttonPrimary} onClick={handleSave} disabled={saving}>
                     {saving ? 'Saving...' : 'Save'}

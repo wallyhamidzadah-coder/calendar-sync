@@ -85,6 +85,10 @@ export async function GET() {
       description: e.description || null,
       attendees,
       hasOtherAttendees,
+      customColor:
+        typeof e?.extendedProperties?.private?.customColor === 'string'
+          ? e.extendedProperties.private.customColor
+          : null,
     };
   });
 
