@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Calendar, dateFnsLocalizer, SlotInfo } from 'react-big-calendar';
+import { Calendar, dateFnsLocalizer, SlotInfo, Views, type View } from 'react-big-calendar';
 import { format, parse, startOfWeek, getDay } from 'date-fns';
 import 'react-big-calendar/lib/css/react-big-calendar.css';
 import './calendar-overrides.css';
@@ -126,7 +126,7 @@ export default function Home() {
   const [googleCount, setGoogleCount] = useState(0);
   const [outlookSyncedAt, setOutlookSyncedAt] = useState<string | null>(null);
   const [relativeNow, setRelativeNow] = useState(new Date());
-  const [view, setView] = useState<'month' | 'week' | 'day' | 'agenda'>('week');
+  const [view, setView] = useState<View>(Views.WORK_WEEK);
   const [date, setDate] = useState(new Date());
 
   function loadEvents(options?: { background?: boolean }) {
@@ -502,7 +502,8 @@ export default function Home() {
           onView={setView}
           date={date}
           onNavigate={setDate}
-          views={['month', 'week', 'day', 'agenda']}
+          views={[Views.MONTH, Views.WORK_WEEK, Views.DAY, Views.AGENDA]}
+          messages={{ work_week: 'Week' }}
           selectable
           eventPropGetter={(event: CalendarEvent) => ({
             style: {
