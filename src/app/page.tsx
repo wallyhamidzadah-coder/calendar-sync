@@ -22,9 +22,9 @@ const DragAndDropCalendar = withDragAndDrop<CalendarEvent, object>(Calendar);
 
 const OUTLOOK_COLOR = '#d83b01';
 const GOOGLE_COLOR = '#1a73e8';
-const EVENT_PURPLE = '#8b5cf6';
-const EVENT_GOOGLE_BLUE = '#1a73e8';
-const EVENT_OUTLOOK_GREEN = '#0e7c3f';
+const EVENT_PURPLE = '#6f62b5';
+const EVENT_GOOGLE_BLUE = '#4f78b8';
+const EVENT_OUTLOOK_GREEN = '#3f8c6f';
 const COLOR_SWATCHES = ['#8b5cf6', '#1a73e8', '#0e7c3f', '#dc2626', '#f97316', '#eab308'] as const;
 const MY_EMAIL = 'wally.hamidzadah.2027@marshall.usc.edu';
 const SYNC_INTERVAL_MS = 10 * 60 * 1000;
@@ -136,6 +136,7 @@ export default function Home() {
   const [relativeNow, setRelativeNow] = useState(new Date());
   const [view, setView] = useState<View>(Views.WORK_WEEK);
   const [date, setDate] = useState(new Date());
+  const [modalClosing, setModalClosing] = useState(false);
 
   function loadEvents(options?: { background?: boolean }) {
     const isBackgroundSync = options?.background === true;
@@ -422,67 +423,97 @@ export default function Home() {
     void handleEventTimeChange(args);
   }
 
+  function closeModal() {
+    setModalClosing(true);
+    window.setTimeout(() => {
+      setSelectedEvent(null);
+      setEditing(false);
+      setCreating(false);
+      setModalClosing(false);
+    }, 180);
+  }
+
   const inputStyle: React.CSSProperties = {
     width: '100%',
-    padding: '8px 10px',
-    background: '#151515',
-    border: '1px solid #333',
-    borderRadius: 6,
+    height: 38,
+    padding: '0 12px',
+    background: '#141b28',
+    border: '1px solid #2f3a4d',
+    borderRadius: 10,
     color: '#e5e5e5',
-    fontSize: 14,
+    fontSize: 13,
+    fontWeight: 500,
     marginBottom: 12,
+    transition: 'all 180ms ease',
   };
 
   const labelStyle: React.CSSProperties = {
-    fontSize: 12,
-    color: '#999',
-    marginBottom: 4,
+    fontSize: 11,
+    color: '#93a0b5',
+    marginBottom: 6,
+    fontWeight: 650,
+    letterSpacing: '0.03em',
+    textTransform: 'uppercase',
     display: 'block',
   };
 
   const buttonPrimary: React.CSSProperties = {
-    padding: '8px 16px',
-    background: '#1a73e8',
-    border: 'none',
+    height: 36,
+    padding: '0 16px',
+    background: '#2d3f5b',
+    border: '1px solid #4c6389',
     color: '#fff',
-    borderRadius: 6,
+    borderRadius: 10,
     cursor: 'pointer',
-    fontSize: 14,
+    fontSize: 13,
+    fontWeight: 600,
+    letterSpacing: '0.01em',
     marginRight: 8,
+    transition: 'all 180ms ease',
+    boxShadow: '0 6px 16px rgba(0,0,0,0.24)',
   };
 
   const buttonSecondary: React.CSSProperties = {
-    padding: '8px 16px',
-    background: '#2a2a2a',
-    border: '1px solid #3a3a3a',
+    height: 36,
+    padding: '0 16px',
+    background: '#1d2634',
+    border: '1px solid #344055',
     color: '#e5e5e5',
-    borderRadius: 6,
+    borderRadius: 10,
     cursor: 'pointer',
-    fontSize: 14,
+    fontSize: 13,
+    fontWeight: 600,
     marginRight: 8,
+    transition: 'all 180ms ease',
   };
 
   const buttonDanger: React.CSSProperties = {
-    padding: '8px 16px',
-    background: '#3a1a1a',
-    border: '1px solid #5a2a2a',
+    height: 36,
+    padding: '0 16px',
+    background: '#3c2325',
+    border: '1px solid #6a383b',
     color: '#ff8a8a',
-    borderRadius: 6,
+    borderRadius: 10,
     cursor: 'pointer',
-    fontSize: 14,
+    fontSize: 13,
+    fontWeight: 600,
+    transition: 'all 180ms ease',
   };
 
   const toggleChip = (active: boolean, color: string): React.CSSProperties => ({
     display: 'inline-flex',
     alignItems: 'center',
     gap: 6,
-    padding: '6px 12px',
-    borderRadius: 20,
+    height: 36,
+    padding: '0 12px',
+    borderRadius: 10,
     border: `1px solid ${active ? color : '#333'}`,
     background: active ? `${color}22` : '#1a1a1a',
     color: active ? '#fff' : '#777',
     cursor: 'pointer',
     fontSize: 13,
+    fontWeight: 560,
+    transition: 'all 180ms ease',
   });
 
   const selectedEventMeetingLink = selectedEvent ? hasMeetingLink(selectedEvent) : null;
@@ -494,9 +525,9 @@ export default function Home() {
         width: '100%',
         maxWidth: 2000,
         margin: '0 auto',
-        padding: 'clamp(24px, 2vw, 32px)',
+        padding: 'clamp(20px, 2vw, 30px)',
         boxSizing: 'border-box',
-        fontFamily: 'sans-serif',
+        fontFamily: 'var(--font-inter), "Segoe UI", sans-serif',
       }}
     >
       <div
@@ -504,12 +535,17 @@ export default function Home() {
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
-          marginBottom: 12,
+          marginBottom: 14,
           flexWrap: 'wrap',
-          gap: 10,
+          gap: 12,
+          background: '#1a2230',
+          border: '1px solid #2a3342',
+          borderRadius: 10,
+          padding: 12,
+          boxShadow: '0 10px 30px rgba(0,0,0,0.24)',
         }}
       >
-        <h1 style={{ fontSize: 22 }}>Calendar</h1>
+        <h1 style={{ fontSize: 24, fontWeight: 650, letterSpacing: '-0.01em', margin: 0 }}>Calendar</h1>
         <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
             <button
@@ -550,19 +586,20 @@ export default function Home() {
                 display: 'inline-flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                width: 30,
-                height: 30,
-                borderRadius: 15,
-                border: '1px solid #3a3a3a',
-                background: '#1a1a1a',
-                color: '#d5d5d5',
+                width: 36,
+                height: 36,
+                borderRadius: 10,
+                border: '1px solid #344055',
+                background: '#1d2634',
+                color: '#c9d3e5',
                 cursor: 'pointer',
                 fontSize: 13,
+                transition: 'all 180ms ease',
               }}
             >
               ↻
             </button>
-            <span style={{ fontSize: 12, color: '#999' }}>
+            <span style={{ fontSize: 12, color: '#93a0b5', fontWeight: 500 }}>
               synced {formatRelativeSync(outlookSyncedAt, relativeNow)}
             </span>
           </div>
@@ -572,13 +609,15 @@ export default function Home() {
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             style={{
-              padding: '8px 12px',
-              background: '#1f1f1f',
-              border: '1px solid #333',
-              borderRadius: 6,
+              height: 36,
+              padding: '0 12px',
+              background: '#141b28',
+              border: '1px solid #2f3a4d',
+              borderRadius: 10,
               color: '#e5e5e5',
-              width: 200,
-              fontSize: 14,
+              width: 220,
+              fontSize: 13,
+              transition: 'all 180ms ease',
             }}
           />
           <button style={buttonPrimary} onClick={() => openCreateForm()}>
@@ -605,7 +644,7 @@ export default function Home() {
         </div>
       )}
 
-      <div style={{ height: '85vh' }}>
+      <div style={{ height: '84vh' }}>
         <DragAndDropCalendar
           localizer={localizer}
           events={filteredEvents}
@@ -629,15 +668,15 @@ export default function Home() {
           onEventResize={handleEventResize}
           eventPropGetter={(event: CalendarEvent) => ({
             style: {
-              backgroundColor:
+              ['--event-accent' as string]:
                 event.customColor
                   ? event.customColor
                   : hasMeetingLink(event) || hasOtherAttendees(event)
-                  ? EVENT_PURPLE
-                  : event.source === 'Google'
-                    ? EVENT_GOOGLE_BLUE
-                    : EVENT_OUTLOOK_GREEN,
-              border: 'none',
+                    ? EVENT_PURPLE
+                    : event.source === 'Google'
+                      ? EVENT_GOOGLE_BLUE
+                      : EVENT_OUTLOOK_GREEN,
+              backgroundColor: 'transparent',
               cursor:
                 isDnDView && event.source === 'Outlook'
                   ? 'not-allowed'
@@ -653,34 +692,35 @@ export default function Home() {
 
       {(selectedEvent || creating) && (
         <div
-          onClick={() => {
-            setSelectedEvent(null);
-            setEditing(false);
-            setCreating(false);
-          }}
+          onClick={closeModal}
           style={{
             position: 'fixed',
             top: 0,
             left: 0,
             right: 0,
             bottom: 0,
-            background: 'rgba(0,0,0,0.6)',
+            background: modalClosing ? 'rgba(0,0,0,0)' : 'rgba(5,8,14,0.72)',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
             zIndex: 1000,
+            transition: 'background 180ms ease',
           }}
         >
           <div
             onClick={(e) => e.stopPropagation()}
             style={{
-              background: '#1f1f1f',
-              color: '#e5e5e5',
+              background: '#1a2230',
+              color: '#e8edf6',
               padding: 24,
-              borderRadius: 8,
+              borderRadius: 10,
               maxWidth: 420,
               width: '90%',
-              border: '1px solid #333',
+              border: '1px solid #2f3a4d',
+              boxShadow: '0 24px 60px rgba(0,0,0,0.42)',
+              transform: modalClosing ? 'scale(0.98)' : 'scale(1)',
+              opacity: modalClosing ? 0 : 1,
+              transition: 'transform 180ms ease, opacity 180ms ease',
             }}
           >
             {creating || editing ? (
@@ -766,9 +806,7 @@ export default function Home() {
                   <button
                     style={buttonSecondary}
                     onClick={() => {
-                      setEditing(false);
-                      setCreating(false);
-                      setSelectedEvent(null);
+                      closeModal();
                     }}
                   >
                     Cancel
@@ -821,7 +859,7 @@ export default function Home() {
                         </button>
                       </>
                     )}
-                    <button style={buttonSecondary} onClick={() => setSelectedEvent(null)}>
+                    <button style={buttonSecondary} onClick={closeModal}>
                       Close
                     </button>
                   </div>
