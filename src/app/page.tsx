@@ -34,9 +34,9 @@ type CalendarEvent = {
   source: 'Outlook' | 'Google';
 };
 
-function hasMeetingLink(event: CalendarEvent) {
+function hasMeetingLink(event: CalendarEvent): string | null {
   const text = `${event.location ?? ''}\n${event.description ?? ''}`.trim();
-  if (!text) return false;
+  if (!text) return null;
 
   const urlMatches = text.match(/https:\/\/[^\s)>'"]+/gi) || [];
   for (const rawUrl of urlMatches) {
@@ -54,18 +54,18 @@ function hasMeetingLink(event: CalendarEvent) {
         host === 'meet.google.com' ||
         host.endsWith('.meet.google.com')
       ) {
-        return true;
+        return url;
       }
     } catch {
       // Ignore malformed URLs and continue scanning.
     }
 
     if (url.toLowerCase().startsWith('https://')) {
-      return true;
+      return url;
     }
   }
 
-  return false;
+  return null;
 }
 
 function hasOtherAttendees(event: CalendarEvent) {
@@ -340,6 +340,8 @@ export default function Home() {
     fontSize: 13,
   });
 
+  const selectedEventMeetingLink = selectedEvent ? hasMeetingLink(selectedEvent) : null;
+
   return (
     <main style={{ padding: 20, fontFamily: 'sans-serif' }}>
       <div
@@ -558,6 +560,14 @@ export default function Home() {
                     </div>
                   )}
                   <div style={{ marginTop: 12 }}>
+                    {selectedEventMeetingLink && (
+                      <button
+                        style={buttonPrimary}
+                        onClick={() => window.open(selectedEventMeetingLink, '_blank')}
+                      >
+                        Join
+                      </button>
+                    )}
                     {selectedEvent.source === 'Google' && (
                       <>
                         <button style={buttonPrimary} onClick={() => openEditForm(selectedEvent)}>
