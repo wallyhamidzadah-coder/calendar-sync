@@ -406,7 +406,16 @@ export default function Home() {
   const selectedEventMeetingLink = selectedEvent ? hasMeetingLink(selectedEvent) : null;
 
   return (
-    <main style={{ padding: 20, fontFamily: 'sans-serif' }}>
+    <main
+      style={{
+        width: '100%',
+        maxWidth: 2000,
+        margin: '0 auto',
+        padding: 'clamp(24px, 2vw, 32px)',
+        boxSizing: 'border-box',
+        fontFamily: 'sans-serif',
+      }}
+    >
       <div
         style={{
           display: 'flex',
