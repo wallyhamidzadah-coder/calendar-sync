@@ -357,18 +357,6 @@ function parseEvents(raw: string): CalendarEvent[] {
           continue;
         }
 
-        // Skip future CONFIRMED overrides (they're orphaned from deleted series)
-        if (useOverride && useOverride.status === "CONFIRMED") {
-          const overrideDate = new Date(useOverride.start);
-          if (overrideDate >= now) {
-            skippedCount++;
-            if (process.env.NODE_ENV !== 'production') {
-              console.log(`    Skipped future CONFIRMED override: ${event.summary} on ${occurrenceDateStr}`);
-            }
-            continue;
-          }
-        }
-
         // If override exists and is not cancelled, use it (replaces the generated occurrence)
         if (useOverride) {
           const overrideAttendees =
