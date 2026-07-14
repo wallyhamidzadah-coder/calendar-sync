@@ -648,6 +648,7 @@ export default function Home() {
       <div style={{ height: '84vh' }}>
         <DragAndDropCalendar
           localizer={localizer}
+              scrollToTime={new Date(1970, 0, 1, 6, 0, 0)}
           events={filteredEvents}
           startAccessor="start"
           endAccessor="end"

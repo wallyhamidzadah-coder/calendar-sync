@@ -37,15 +37,18 @@ export async function GET() {
   }
 
   const now = new Date();
+  const past = new Date();
+  past.setDate(past.getDate() - 30);
   const future = new Date();
   future.setDate(future.getDate() + 90);
 
   const params = new URLSearchParams({
 
+    timeMin: past.toISOString(),
     timeMax: future.toISOString(),
     singleEvents: 'true',
     orderBy: 'startTime',
-    maxResults: '100',
+    maxResults: '250',
   });
 
   const calRes = await fetch(
