@@ -41,7 +41,7 @@ export async function GET() {
   future.setDate(future.getDate() + 90);
 
   const params = new URLSearchParams({
-    timeMin: now.toISOString(),
+
     timeMax: future.toISOString(),
     singleEvents: 'true',
     orderBy: 'startTime',
