@@ -12,6 +12,71 @@ type CalendarEvent = {
 };
 
 const MY_EMAIL = "wally.hamidzadah.2027@marshall.usc.edu";
+const WINDOWS_TZ_TO_IANA: Record<string, string> = {
+  "Pacific Standard Time": "America/Los_Angeles",
+  "Mountain Standard Time": "America/Denver",
+  "Central Standard Time": "America/Chicago",
+  "Eastern Standard Time": "America/New_York",
+  "Singapore Standard Time": "Asia/Singapore",
+  UTC: "UTC",
+};
+
+function extractTzid(line: string | null) {
+  if (!line) return null;
+  const match = line.match(/;TZID=([^:;]+)/i);
+  return match?.[1]?.trim() || null;
+}
+
+function mapWindowsTzidToIana(tzid: string | null) {
+  if (!tzid) return null;
+  const normalized = tzid.trim();
+  return WINDOWS_TZ_TO_IANA[normalized] || normalized;
+}
+
+function getTimeZoneOffsetMs(date: Date, timeZone: string) {
+  const dtf = new Intl.DateTimeFormat("en-US", {
+    timeZone,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    hourCycle: "h23",
+  });
+
+  const parts = dtf.formatToParts(date);
+  const get = (type: string) => Number(parts.find((p) => p.type === type)?.value ?? "0");
+  const asUtc = Date.UTC(
+    get("year"),
+    get("month") - 1,
+    get("day"),
+    get("hour"),
+    get("minute"),
+    get("second")
+  );
+
+  return asUtc - date.getTime();
+}
+
+function zonedLocalToUtc(
+  year: number,
+  month: number,
+  day: number,
+  hour: number,
+  minute: number,
+  second: number,
+  timeZone: string
+) {
+  let utcGuess = Date.UTC(year, month - 1, day, hour, minute, second);
+  for (let i = 0; i < 3; i++) {
+    const offset = getTimeZoneOffsetMs(new Date(utcGuess), timeZone);
+    const next = Date.UTC(year, month - 1, day, hour, minute, second) - offset;
+    if (next === utcGuess) break;
+    utcGuess = next;
+  }
+  return new Date(utcGuess);
+}
 
 function parseAttendeeEmail(line: string): string | null {
   const match = line.match(/mailto:([^;:\s]+)/i);
@@ -30,26 +95,7 @@ function unfoldLines(raw: string) {
   return raw.replace(/\r?\n[ \t]/g, "");
 }
 
-function parseIcsDate(value: string) {
-  // Handle all-day events: YYYYMMDD -> YYYY-MM-DD
-  const allDayMatch = value.match(/^(\d{8})$/);
-  if (allDayMatch) {
-    const d = allDayMatch[1];
-    return `${d.slice(0, 4)}-${d.slice(4, 6)}-${d.slice(6, 8)}T00:00:00Z`;
-  }
-
-  // Handle datetime with optional Z: YYYYMMDDTHHMMSS[Z] -> ISO format
-  const dateTimeMatch = value.match(/^(\d{8})T(\d{6})(Z)?$/);
-  if (dateTimeMatch) {
-    const [, d, t, z] = dateTimeMatch;
-    return `${d.slice(0, 4)}-${d.slice(4, 6)}-${d.slice(6, 8)}T${t.slice(0, 2)}:${t.slice(2, 4)}:${t.slice(4, 6)}${z ? "Z" : ""}`;
-  }
-
-  // If none match, return the value as-is (for edge cases)
-  return value;
-}
-
-function parseIcsDateToDate(value: string): Date | null {
+function parseIcsDateToDate(value: string, tzid?: string | null): Date | null {
   // Handle all-day events: YYYYMMDD
   const allDayMatch = value.match(/^(\d{8})$/);
   if (allDayMatch) {
@@ -61,11 +107,41 @@ function parseIcsDateToDate(value: string): Date | null {
   const dateTimeMatch = value.match(/^(\d{8})T(\d{6})(Z)?$/);
   if (dateTimeMatch) {
     const [, d, t, z] = dateTimeMatch;
-    const isoStr = `${d.slice(0, 4)}-${d.slice(4, 6)}-${d.slice(6, 8)}T${t.slice(0, 2)}:${t.slice(2, 4)}:${t.slice(4, 6)}${z ? "Z" : ""}`;
-    return new Date(isoStr);
+    const year = Number(d.slice(0, 4));
+    const month = Number(d.slice(4, 6));
+    const day = Number(d.slice(6, 8));
+    const hour = Number(t.slice(0, 2));
+    const minute = Number(t.slice(2, 4));
+    const second = Number(t.slice(4, 6));
+
+    if (z) {
+      return new Date(Date.UTC(year, month - 1, day, hour, minute, second));
+    }
+
+    const mappedTz = mapWindowsTzidToIana(tzid ?? null);
+    if (mappedTz) {
+      try {
+        return zonedLocalToUtc(year, month, day, hour, minute, second, mappedTz);
+      } catch {
+        // Fall back below if timezone conversion fails.
+      }
+    }
+
+    return new Date(
+      `${d.slice(0, 4)}-${d.slice(4, 6)}-${d.slice(6, 8)}T${t.slice(0, 2)}:${t.slice(2, 4)}:${t.slice(4, 6)}`
+    );
   }
 
   return null;
+}
+
+function parseIcsFloatingLocalDate(value: string): Date | null {
+  const dateTimeMatch = value.match(/^(\d{8})T(\d{6})$/);
+  if (!dateTimeMatch) return null;
+  const [, d, t] = dateTimeMatch;
+  return new Date(
+    `${d.slice(0, 4)}-${d.slice(4, 6)}-${d.slice(6, 8)}T${t.slice(0, 2)}:${t.slice(2, 4)}:${t.slice(4, 6)}`
+  );
 }
 
 function parseEvents(raw: string): CalendarEvent[] {
@@ -84,6 +160,8 @@ function parseEvents(raw: string): CalendarEvent[] {
         summary: "",
         start: null,
         end: null,
+        dtstartTzid: null as string | null,
+        dtendTzid: null as string | null,
         location: null,
         description: null,
         attendees: [] as string[],
@@ -122,13 +200,17 @@ function parseEvents(raw: string): CalendarEvent[] {
     }
     else if (line.startsWith("DTSTART")) {
       const value = line.split(":").pop() ?? "";
+      current.dtstartTzid = extractTzid(line);
       current.dtstart = value;
-      current.start = parseIcsDate(value);
+      const parsed = parseIcsDateToDate(value, current.dtstartTzid);
+      current.start = parsed ? parsed.toISOString() : value;
     }
     else if (line.startsWith("DTEND")) {
       const value = line.split(":").pop() ?? "";
+      current.dtendTzid = extractTzid(line);
       current.dtend = value;
-      current.end = parseIcsDate(value);
+      const parsed = parseIcsDateToDate(value, current.dtendTzid ?? current.dtstartTzid);
+      current.end = parsed ? parsed.toISOString() : value;
     }
     else if (line.startsWith("RRULE")) {
       rruleInsideVevent++;
@@ -221,16 +303,23 @@ function parseEvents(raw: string): CalendarEvent[] {
       // Parse EXDATE exceptions into a Set for fast lookup
       const exdateSet = new Set<string>();
       for (const exdate of event.exdates) {
-        const exdateDate = parseIcsDateToDate(exdate);
+        const exdateDate = parseIcsDateToDate(exdate, event.dtstartTzid ?? event.dtendTzid);
         if (exdateDate) {
           exdateSet.add(exdateDate.toISOString().split("T")[0]);
         }
       }
 
       // Parse RRULE and generate occurrences
+      const rruleOptions = RRule.parseString(event.rrule);
+      const mappedRruleTzid = mapWindowsTzidToIana(event.dtstartTzid ?? event.dtendTzid);
+      const rruleSeedDtstart =
+        mappedRruleTzid && event.dtstart && !event.dtstart.endsWith("Z")
+          ? parseIcsFloatingLocalDate(event.dtstart) ?? startDate
+          : startDate;
       const rrule = new RRule({
-        ...RRule.parseString(event.rrule),
-        dtstart: startDate,
+        ...rruleOptions,
+        ...(mappedRruleTzid ? { tzid: mappedRruleTzid } : {}),
+        dtstart: rruleSeedDtstart,
       });
 
       const occurrences = rrule.between(minDate, maxDate, true);
