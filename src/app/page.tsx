@@ -212,6 +212,9 @@ export default function Home() {
 
         if (outlookData.status !== 'success') setError((p) => p || outlookData.error);
         if (googleData.status !== 'success') setError((p) => p || googleData.error);
+        if (outlookData.status === 'success' && googleData.status === 'success') {
+          setError(null);
+        }
 
         setOutlookCount(outlookEvents.length);
         setGoogleCount(googleEvents.length);
