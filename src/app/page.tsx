@@ -41,61 +41,81 @@ type ChimeNote = {
   overtoneGain?: number;
 };
 
-type ChimeId = 'bell' | 'classic' | 'ping' | 'marimba' | 'trill';
+type ChimeId = 'bell' | 'arpeggio' | 'windchime' | 'pulse' | 'cascade';
 
 const CHIME_OPTIONS: { id: ChimeId; label: string; notes: ChimeNote[] }[] = [
   {
     id: 'bell',
     label: 'Soft Bell',
+    // 3 ascending notes, each ringing out slowly. Last note starts at 0.4s
+    // and rings for 1.7s, so the chime runs ~2.1s total.
     notes: [659.25, 880, 1108.73].map((freq, i) => ({
       freq,
-      offset: i * 0.16,
-      duration: 0.9,
+      offset: i * 0.2,
+      duration: 1.7,
       type: 'sine',
       gain: 0.22,
       overtoneGain: 0.05,
     })),
   },
   {
-    id: 'classic',
-    label: 'Classic Chime',
-    notes: [880, 659.25].map((freq, i) => ({
+    id: 'arpeggio',
+    label: 'Rising Arpeggio',
+    // 4-note ascending run (C5-E5-G5-C6), each note sustaining well past the
+    // next one's start. Last note starts at 0.54s and rings for 1.5s (~2.0s total).
+    notes: [523.25, 659.25, 783.99, 1046.5].map((freq, i) => ({
       freq,
-      offset: i * 0.25,
-      duration: 0.6,
+      offset: i * 0.18,
+      duration: 1.5,
       type: 'sine',
-      gain: 0.24,
+      gain: 0.2,
       overtoneGain: 0.04,
     })),
   },
   {
-    id: 'ping',
-    label: 'Digital Ping',
-    notes: [
-      { freq: 1568, offset: 0, duration: 0.25, type: 'triangle', gain: 0.22, overtoneGain: 0.03 },
-    ],
-  },
-  {
-    id: 'marimba',
-    label: 'Marimba',
-    notes: [523.25, 659.25, 783.99].map((freq, i) => ({
+    id: 'windchime',
+    label: 'Wind Chime',
+    // 5-note high cluster with a soft, glassy timbre, staggered so the tail
+    // rings out; last note starts at 1.0s and rings for 1.2s (~2.2s total).
+    notes: [987.77, 1174.66, 1396.91, 1567.98, 1864.66].map((freq, i) => ({
       freq,
-      offset: i * 0.12,
-      duration: 0.35,
+      offset: i * 0.25,
+      duration: 1.2,
       type: 'triangle',
-      gain: 0.24,
+      gain: 0.14,
     })),
   },
   {
-    id: 'trill',
-    label: 'Alert Trill',
-    notes: [1046.5, 1318.5, 1046.5, 1318.5].map((freq, i) => ({
+    id: 'pulse',
+    label: 'Deep Pulse',
+    // Two low, warm pulses a beat apart; second pulse starts at 1.0s and
+    // rings for 1.3s (~2.3s total).
+    notes: [220, 220].map((freq, i) => ({
       freq,
-      offset: i * 0.09,
-      duration: 0.14,
-      type: 'square',
-      gain: 0.12,
+      offset: i * 1.0,
+      duration: 1.3,
+      type: 'sine',
+      gain: 0.28,
     })),
+  },
+  {
+    id: 'cascade',
+    label: 'Sparkle Cascade',
+    // Quick descending run into one long sustained tail note; the tail
+    // starts at 0.5s and rings for 1.8s (~2.3s total).
+    notes: [
+      { freq: 1568, offset: 0, duration: 0.4, type: 'triangle' as OscillatorType, gain: 0.18 },
+      { freq: 1318.5, offset: 0.15, duration: 0.4, type: 'triangle' as OscillatorType, gain: 0.18 },
+      { freq: 1046.5, offset: 0.3, duration: 0.4, type: 'triangle' as OscillatorType, gain: 0.18 },
+      {
+        freq: 880,
+        offset: 0.5,
+        duration: 1.8,
+        type: 'sine' as OscillatorType,
+        gain: 0.2,
+        overtoneGain: 0.04,
+      },
+    ],
   },
 ];
 
