@@ -274,6 +274,19 @@ export default function Home() {
     });
   }
 
+  function sendTestNotification() {
+    if (typeof window === 'undefined' || !('Notification' in window)) return;
+    if (Notification.permission !== 'granted') return;
+
+    const notification = new Notification('Test notification', {
+      body: 'If you can see this, calendar notifications are working.',
+    });
+    notification.onclick = () => {
+      window.focus();
+      notification.close();
+    };
+  }
+
   useEffect(() => {
     if (!notificationsEnabled || typeof window === 'undefined' || !('Notification' in window)) {
       return;
@@ -649,6 +662,29 @@ export default function Home() {
             >
               {notificationsEnabled ? '🔔' : '🔕'} Notifications
             </button>
+            {notificationsEnabled && (
+              <button
+                type="button"
+                onClick={sendTestNotification}
+                title="Send a test notification right now"
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  height: 36,
+                  padding: '0 12px',
+                  borderRadius: 10,
+                  border: '1px solid #344055',
+                  background: '#1d2634',
+                  color: '#c9d3e5',
+                  cursor: 'pointer',
+                  fontSize: 13,
+                  fontWeight: 560,
+                  transition: 'all 180ms ease',
+                }}
+              >
+                Test
+              </button>
+            )}
             <button
               type="button"
               onClick={() => loadEvents()}
