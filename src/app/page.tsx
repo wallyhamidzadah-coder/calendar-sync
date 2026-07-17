@@ -141,6 +141,37 @@ export default function Home() {
   const [modalClosing, setModalClosing] = useState(false);
   const [notificationsEnabled, setNotificationsEnabled] = useState(false);
   const notifiedKeysRef = useRef<Set<string>>(new Set());
+  const audioContextRef = useRef<AudioContext | null>(null);
+
+  function playChime() {
+    if (typeof window === 'undefined') return;
+    const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
+    if (!AudioContextClass) return;
+
+    if (!audioContextRef.current) {
+      audioContextRef.current = new AudioContextClass();
+    }
+    const ctx = audioContextRef.current;
+    if (ctx.state === 'suspended') {
+      ctx.resume();
+    }
+
+    const now = ctx.currentTime;
+    [880, 1320].forEach((freq, i) => {
+      const oscillator = ctx.createOscillator();
+      const gain = ctx.createGain();
+      oscillator.type = 'sine';
+      oscillator.frequency.value = freq;
+      const start = now + i * 0.12;
+      gain.gain.setValueAtTime(0, start);
+      gain.gain.linearRampToValueAtTime(0.2, start + 0.02);
+      gain.gain.exponentialRampToValueAtTime(0.001, start + 0.3);
+      oscillator.connect(gain);
+      gain.connect(ctx.destination);
+      oscillator.start(start);
+      oscillator.stop(start + 0.3);
+    });
+  }
 
   function loadEvents(options?: { background?: boolean }) {
     const isBackgroundSync = options?.background === true;
@@ -266,6 +297,13 @@ export default function Home() {
       return;
     }
 
+    // Create the AudioContext during this click (a user gesture) so browser
+    // autoplay policy allows it to play later from a timer-driven notification.
+    const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
+    if (AudioContextClass && !audioContextRef.current) {
+      audioContextRef.current = new AudioContextClass();
+    }
+
     Notification.requestPermission().then((permission) => {
       if (permission === 'granted') {
         setNotificationsEnabled(true);
@@ -285,6 +323,7 @@ export default function Home() {
       window.focus();
       notification.close();
     };
+    playChime();
   }
 
   useEffect(() => {
@@ -310,6 +349,7 @@ export default function Home() {
         window.focus();
         notification.close();
       };
+      playChime();
     }
   }, [events, relativeNow, notificationsEnabled]);
 
