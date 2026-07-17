@@ -157,19 +157,31 @@ export default function Home() {
     }
 
     const now = ctx.currentTime;
-    [880, 1320].forEach((freq, i) => {
-      const oscillator = ctx.createOscillator();
-      const gain = ctx.createGain();
-      oscillator.type = 'sine';
-      oscillator.frequency.value = freq;
-      const start = now + i * 0.12;
-      gain.gain.setValueAtTime(0, start);
-      gain.gain.linearRampToValueAtTime(0.2, start + 0.02);
-      gain.gain.exponentialRampToValueAtTime(0.001, start + 0.3);
-      oscillator.connect(gain);
-      gain.connect(ctx.destination);
-      oscillator.start(start);
-      oscillator.stop(start + 0.3);
+    // Soft ascending three-note bell, each note ringing out with a slow decay
+    // and a quiet overtone for a warmer, less "beepy" timbre.
+    const notes = [659.25, 880, 1108.73]; // E5, A5, C#6
+    const noteSpacing = 0.16;
+    const noteDuration = 0.9;
+
+    notes.forEach((freq, i) => {
+      const start = now + i * noteSpacing;
+
+      [
+        { multiplier: 1, gain: 0.22 },
+        { multiplier: 2, gain: 0.05 },
+      ].forEach(({ multiplier, gain: peakGain }) => {
+        const oscillator = ctx.createOscillator();
+        const gain = ctx.createGain();
+        oscillator.type = 'sine';
+        oscillator.frequency.value = freq * multiplier;
+        gain.gain.setValueAtTime(0, start);
+        gain.gain.linearRampToValueAtTime(peakGain, start + 0.03);
+        gain.gain.exponentialRampToValueAtTime(0.001, start + noteDuration);
+        oscillator.connect(gain);
+        gain.connect(ctx.destination);
+        oscillator.start(start);
+        oscillator.stop(start + noteDuration);
+      });
     });
   }
 
