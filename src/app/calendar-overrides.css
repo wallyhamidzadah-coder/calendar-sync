@@ -109,6 +109,15 @@
   padding-right: 8px;
 }
 
+/*
+ * Force a minimum row height so short events render tall enough that the
+ * drag-and-drop resize handles (a few px at the very top/bottom edge) don't
+ * dominate the click target and swallow attempts to move the event.
+ */
+.rbc-time-slot {
+  min-height: 32px;
+}
+
 .rbc-label {
   font-size: 11px;
   font-weight: 550;
