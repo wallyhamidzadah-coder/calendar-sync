@@ -30,7 +30,6 @@ const MY_EMAIL = 'wally.hamidzadah.2027@marshall.usc.edu';
 const SYNC_INTERVAL_MS = 10 * 60 * 1000;
 const NOTIFY_MINUTES_BEFORE = 10;
 const NOTIFICATIONS_PREF_KEY = 'calendar-sync:notifications-enabled';
-const CHIME_PREF_KEY = 'calendar-sync:chime-id';
 
 type ChimeNote = {
   freq: number;
@@ -41,83 +40,16 @@ type ChimeNote = {
   overtoneGain?: number;
 };
 
-type ChimeId = 'bell' | 'arpeggio' | 'windchime' | 'pulse' | 'cascade';
-
-const CHIME_OPTIONS: { id: ChimeId; label: string; notes: ChimeNote[] }[] = [
-  {
-    id: 'bell',
-    label: 'Soft Bell',
-    // 3 ascending notes, each ringing out slowly. Last note starts at 0.4s
-    // and rings for 1.7s, so the chime runs ~2.1s total.
-    notes: [659.25, 880, 1108.73].map((freq, i) => ({
-      freq,
-      offset: i * 0.2,
-      duration: 1.7,
-      type: 'sine',
-      gain: 0.22,
-      overtoneGain: 0.05,
-    })),
-  },
-  {
-    id: 'arpeggio',
-    label: 'Rising Arpeggio',
-    // 4-note ascending run (C5-E5-G5-C6), each note sustaining well past the
-    // next one's start. Last note starts at 0.54s and rings for 1.5s (~2.0s total).
-    notes: [523.25, 659.25, 783.99, 1046.5].map((freq, i) => ({
-      freq,
-      offset: i * 0.18,
-      duration: 1.5,
-      type: 'sine',
-      gain: 0.2,
-      overtoneGain: 0.04,
-    })),
-  },
-  {
-    id: 'windchime',
-    label: 'Wind Chime',
-    // 5-note high cluster with a soft, glassy timbre, staggered so the tail
-    // rings out; last note starts at 1.0s and rings for 1.2s (~2.2s total).
-    notes: [987.77, 1174.66, 1396.91, 1567.98, 1864.66].map((freq, i) => ({
-      freq,
-      offset: i * 0.25,
-      duration: 1.2,
-      type: 'triangle',
-      gain: 0.14,
-    })),
-  },
-  {
-    id: 'pulse',
-    label: 'Deep Pulse',
-    // Two low, warm pulses a beat apart; second pulse starts at 1.0s and
-    // rings for 1.3s (~2.3s total).
-    notes: [220, 220].map((freq, i) => ({
-      freq,
-      offset: i * 1.0,
-      duration: 1.3,
-      type: 'sine',
-      gain: 0.28,
-    })),
-  },
-  {
-    id: 'cascade',
-    label: 'Sparkle Cascade',
-    // Quick descending run into one long sustained tail note; the tail
-    // starts at 0.5s and rings for 1.8s (~2.3s total).
-    notes: [
-      { freq: 1568, offset: 0, duration: 0.4, type: 'triangle' as OscillatorType, gain: 0.18 },
-      { freq: 1318.5, offset: 0.15, duration: 0.4, type: 'triangle' as OscillatorType, gain: 0.18 },
-      { freq: 1046.5, offset: 0.3, duration: 0.4, type: 'triangle' as OscillatorType, gain: 0.18 },
-      {
-        freq: 880,
-        offset: 0.5,
-        duration: 1.8,
-        type: 'sine' as OscillatorType,
-        gain: 0.2,
-        overtoneGain: 0.04,
-      },
-    ],
-  },
-];
+// 3 ascending notes, each ringing out slowly. Last note starts at 0.4s and
+// rings for 1.7s, so the chime runs ~2.1s total.
+const CHIME_NOTES: ChimeNote[] = [659.25, 880, 1108.73].map((freq, i) => ({
+  freq,
+  offset: i * 0.2,
+  duration: 1.7,
+  type: 'sine',
+  gain: 0.22,
+  overtoneGain: 0.05,
+}));
 
 type CalendarEvent = {
   id?: string;
@@ -228,7 +160,6 @@ export default function Home() {
   const [date, setDate] = useState(new Date());
   const [modalClosing, setModalClosing] = useState(false);
   const [notificationsEnabled, setNotificationsEnabled] = useState(false);
-  const [chimeId, setChimeId] = useState<ChimeId>('bell');
   const notifiedKeysRef = useRef<Set<string>>(new Set());
   const audioContextRef = useRef<AudioContext | null>(null);
 
@@ -247,14 +178,13 @@ export default function Home() {
     return ctx;
   }
 
-  function playChimeById(id: ChimeId) {
+  function playChime() {
     const ctx = getAudioContext();
     if (!ctx) return;
 
-    const chime = CHIME_OPTIONS.find((c) => c.id === id) ?? CHIME_OPTIONS[0];
     const now = ctx.currentTime;
 
-    chime.notes.forEach(({ freq, offset, duration, type, gain: peakGain, overtoneGain }) => {
+    CHIME_NOTES.forEach(({ freq, offset, duration, type, gain: peakGain, overtoneGain }) => {
       const start = now + offset;
 
       const partials = [{ multiplier: 1, gain: peakGain }];
@@ -274,10 +204,6 @@ export default function Home() {
         oscillator.stop(start + duration);
       });
     });
-  }
-
-  function playChime() {
-    playChimeById(chimeId);
   }
 
   function loadEvents(options?: { background?: boolean }) {
@@ -393,20 +319,7 @@ export default function Home() {
     if (wantsNotifications && Notification.permission === 'granted') {
       setNotificationsEnabled(true);
     }
-
-    const savedChimeId = window.localStorage.getItem(CHIME_PREF_KEY) as ChimeId | null;
-    if (savedChimeId && CHIME_OPTIONS.some((c) => c.id === savedChimeId)) {
-      setChimeId(savedChimeId);
-    }
   }, []);
-
-  function selectChime(id: ChimeId) {
-    setChimeId(id);
-    if (typeof window !== 'undefined') {
-      window.localStorage.setItem(CHIME_PREF_KEY, id);
-    }
-    playChimeById(id);
-  }
 
   function toggleNotifications() {
     if (typeof window === 'undefined' || !('Notification' in window)) return;
@@ -845,40 +758,6 @@ export default function Home() {
                 Test
               </button>
             )}
-            <div
-              style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: 6,
-                paddingLeft: 4,
-              }}
-            >
-              <span style={{ fontSize: 12, color: '#93a0b5', fontWeight: 500 }}>Sound:</span>
-              {CHIME_OPTIONS.map((option) => (
-                <button
-                  key={option.id}
-                  type="button"
-                  onClick={() => selectChime(option.id)}
-                  title={`Preview "${option.label}"`}
-                  style={{
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    height: 30,
-                    padding: '0 10px',
-                    borderRadius: 8,
-                    border: `1px solid ${chimeId === option.id ? '#eab308' : '#333'}`,
-                    background: chimeId === option.id ? '#eab30822' : '#1a1a1a',
-                    color: chimeId === option.id ? '#fff' : '#93a0b5',
-                    cursor: 'pointer',
-                    fontSize: 12,
-                    fontWeight: 550,
-                    transition: 'all 180ms ease',
-                  }}
-                >
-                  {option.label}
-                </button>
-              ))}
-            </div>
             <button
               type="button"
               onClick={() => loadEvents()}
