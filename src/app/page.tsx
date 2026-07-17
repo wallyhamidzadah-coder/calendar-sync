@@ -30,6 +30,74 @@ const MY_EMAIL = 'wally.hamidzadah.2027@marshall.usc.edu';
 const SYNC_INTERVAL_MS = 10 * 60 * 1000;
 const NOTIFY_MINUTES_BEFORE = 10;
 const NOTIFICATIONS_PREF_KEY = 'calendar-sync:notifications-enabled';
+const CHIME_PREF_KEY = 'calendar-sync:chime-id';
+
+type ChimeNote = {
+  freq: number;
+  offset: number;
+  duration: number;
+  type: OscillatorType;
+  gain: number;
+  overtoneGain?: number;
+};
+
+type ChimeId = 'bell' | 'classic' | 'ping' | 'marimba' | 'trill';
+
+const CHIME_OPTIONS: { id: ChimeId; label: string; notes: ChimeNote[] }[] = [
+  {
+    id: 'bell',
+    label: 'Soft Bell',
+    notes: [659.25, 880, 1108.73].map((freq, i) => ({
+      freq,
+      offset: i * 0.16,
+      duration: 0.9,
+      type: 'sine',
+      gain: 0.22,
+      overtoneGain: 0.05,
+    })),
+  },
+  {
+    id: 'classic',
+    label: 'Classic Chime',
+    notes: [880, 659.25].map((freq, i) => ({
+      freq,
+      offset: i * 0.25,
+      duration: 0.6,
+      type: 'sine',
+      gain: 0.24,
+      overtoneGain: 0.04,
+    })),
+  },
+  {
+    id: 'ping',
+    label: 'Digital Ping',
+    notes: [
+      { freq: 1568, offset: 0, duration: 0.25, type: 'triangle', gain: 0.22, overtoneGain: 0.03 },
+    ],
+  },
+  {
+    id: 'marimba',
+    label: 'Marimba',
+    notes: [523.25, 659.25, 783.99].map((freq, i) => ({
+      freq,
+      offset: i * 0.12,
+      duration: 0.35,
+      type: 'triangle',
+      gain: 0.24,
+    })),
+  },
+  {
+    id: 'trill',
+    label: 'Alert Trill',
+    notes: [1046.5, 1318.5, 1046.5, 1318.5].map((freq, i) => ({
+      freq,
+      offset: i * 0.09,
+      duration: 0.14,
+      type: 'square',
+      gain: 0.12,
+    })),
+  },
+];
 
 type CalendarEvent = {
   id?: string;
@@ -140,13 +208,14 @@ export default function Home() {
   const [date, setDate] = useState(new Date());
   const [modalClosing, setModalClosing] = useState(false);
   const [notificationsEnabled, setNotificationsEnabled] = useState(false);
+  const [chimeId, setChimeId] = useState<ChimeId>('bell');
   const notifiedKeysRef = useRef<Set<string>>(new Set());
   const audioContextRef = useRef<AudioContext | null>(null);
 
-  function playChime() {
-    if (typeof window === 'undefined') return;
+  function getAudioContext(): AudioContext | null {
+    if (typeof window === 'undefined') return null;
     const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
-    if (!AudioContextClass) return;
+    if (!AudioContextClass) return null;
 
     if (!audioContextRef.current) {
       audioContextRef.current = new AudioContextClass();
@@ -155,34 +224,40 @@ export default function Home() {
     if (ctx.state === 'suspended') {
       ctx.resume();
     }
+    return ctx;
+  }
 
+  function playChimeById(id: ChimeId) {
+    const ctx = getAudioContext();
+    if (!ctx) return;
+
+    const chime = CHIME_OPTIONS.find((c) => c.id === id) ?? CHIME_OPTIONS[0];
     const now = ctx.currentTime;
-    // Soft ascending three-note bell, each note ringing out with a slow decay
-    // and a quiet overtone for a warmer, less "beepy" timbre.
-    const notes = [659.25, 880, 1108.73]; // E5, A5, C#6
-    const noteSpacing = 0.16;
-    const noteDuration = 0.9;
 
-    notes.forEach((freq, i) => {
-      const start = now + i * noteSpacing;
+    chime.notes.forEach(({ freq, offset, duration, type, gain: peakGain, overtoneGain }) => {
+      const start = now + offset;
 
-      [
-        { multiplier: 1, gain: 0.22 },
-        { multiplier: 2, gain: 0.05 },
-      ].forEach(({ multiplier, gain: peakGain }) => {
+      const partials = [{ multiplier: 1, gain: peakGain }];
+      if (overtoneGain) partials.push({ multiplier: 2, gain: overtoneGain });
+
+      partials.forEach(({ multiplier, gain: partialGain }) => {
         const oscillator = ctx.createOscillator();
         const gain = ctx.createGain();
-        oscillator.type = 'sine';
+        oscillator.type = type;
         oscillator.frequency.value = freq * multiplier;
         gain.gain.setValueAtTime(0, start);
-        gain.gain.linearRampToValueAtTime(peakGain, start + 0.03);
-        gain.gain.exponentialRampToValueAtTime(0.001, start + noteDuration);
+        gain.gain.linearRampToValueAtTime(partialGain, start + 0.02);
+        gain.gain.exponentialRampToValueAtTime(0.001, start + duration);
         oscillator.connect(gain);
         gain.connect(ctx.destination);
         oscillator.start(start);
-        oscillator.stop(start + noteDuration);
+        oscillator.stop(start + duration);
       });
     });
+  }
+
+  function playChime() {
+    playChimeById(chimeId);
   }
 
   function loadEvents(options?: { background?: boolean }) {
@@ -298,7 +373,20 @@ export default function Home() {
     if (wantsNotifications && Notification.permission === 'granted') {
       setNotificationsEnabled(true);
     }
+
+    const savedChimeId = window.localStorage.getItem(CHIME_PREF_KEY) as ChimeId | null;
+    if (savedChimeId && CHIME_OPTIONS.some((c) => c.id === savedChimeId)) {
+      setChimeId(savedChimeId);
+    }
   }, []);
+
+  function selectChime(id: ChimeId) {
+    setChimeId(id);
+    if (typeof window !== 'undefined') {
+      window.localStorage.setItem(CHIME_PREF_KEY, id);
+    }
+    playChimeById(id);
+  }
 
   function toggleNotifications() {
     if (typeof window === 'undefined' || !('Notification' in window)) return;
@@ -737,6 +825,40 @@ export default function Home() {
                 Test
               </button>
             )}
+            <div
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 6,
+                paddingLeft: 4,
+              }}
+            >
+              <span style={{ fontSize: 12, color: '#93a0b5', fontWeight: 500 }}>Sound:</span>
+              {CHIME_OPTIONS.map((option) => (
+                <button
+                  key={option.id}
+                  type="button"
+                  onClick={() => selectChime(option.id)}
+                  title={`Preview "${option.label}"`}
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    height: 30,
+                    padding: '0 10px',
+                    borderRadius: 8,
+                    border: `1px solid ${chimeId === option.id ? '#eab308' : '#333'}`,
+                    background: chimeId === option.id ? '#eab30822' : '#1a1a1a',
+                    color: chimeId === option.id ? '#fff' : '#93a0b5',
+                    cursor: 'pointer',
+                    fontSize: 12,
+                    fontWeight: 550,
+                    transition: 'all 180ms ease',
+                  }}
+                >
+                  {option.label}
+                </button>
+              ))}
+            </div>
             <button
               type="button"
               onClick={() => loadEvents()}
