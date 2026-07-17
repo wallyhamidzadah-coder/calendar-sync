@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Calendar, dateFnsLocalizer, SlotInfo, Views, type View } from 'react-big-calendar';
 import withDragAndDrop, {
   type EventInteractionArgs,
@@ -28,6 +28,8 @@ const EVENT_OUTLOOK_GREEN = '#0e7c3f';
 const COLOR_SWATCHES = ['#8b5cf6', '#1a73e8', '#0e7c3f', '#dc2626', '#f97316', '#eab308'] as const;
 const MY_EMAIL = 'wally.hamidzadah.2027@marshall.usc.edu';
 const SYNC_INTERVAL_MS = 10 * 60 * 1000;
+const NOTIFY_MINUTES_BEFORE = 10;
+const NOTIFICATIONS_PREF_KEY = 'calendar-sync:notifications-enabled';
 
 type CalendarEvent = {
   id?: string;
@@ -137,6 +139,8 @@ export default function Home() {
   const [view, setView] = useState<View>(Views.WORK_WEEK);
   const [date, setDate] = useState(new Date());
   const [modalClosing, setModalClosing] = useState(false);
+  const [notificationsEnabled, setNotificationsEnabled] = useState(false);
+  const notifiedKeysRef = useRef<Set<string>>(new Set());
 
   function loadEvents(options?: { background?: boolean }) {
     const isBackgroundSync = options?.background === true;
@@ -241,6 +245,57 @@ export default function Home() {
     const interval = window.setInterval(() => setRelativeNow(new Date()), 30000);
     return () => window.clearInterval(interval);
   }, []);
+
+  useEffect(() => {
+    if (typeof window === 'undefined' || !('Notification' in window)) return;
+    const wantsNotifications = window.localStorage.getItem(NOTIFICATIONS_PREF_KEY) === 'true';
+    if (wantsNotifications && Notification.permission === 'granted') {
+      setNotificationsEnabled(true);
+    }
+  }, []);
+
+  function toggleNotifications() {
+    if (typeof window === 'undefined' || !('Notification' in window)) return;
+
+    if (notificationsEnabled) {
+      setNotificationsEnabled(false);
+      window.localStorage.setItem(NOTIFICATIONS_PREF_KEY, 'false');
+      return;
+    }
+
+    Notification.requestPermission().then((permission) => {
+      if (permission === 'granted') {
+        setNotificationsEnabled(true);
+        window.localStorage.setItem(NOTIFICATIONS_PREF_KEY, 'true');
+      }
+    });
+  }
+
+  useEffect(() => {
+    if (!notificationsEnabled || typeof window === 'undefined' || !('Notification' in window)) {
+      return;
+    }
+    if (Notification.permission !== 'granted') return;
+
+    const now = relativeNow.getTime();
+    for (const event of events) {
+      const minutesUntilStart = (event.start.getTime() - now) / 60000;
+      if (minutesUntilStart < 0 || minutesUntilStart > NOTIFY_MINUTES_BEFORE) continue;
+
+      const key = `${event.source}|${event.title}|${event.start.toISOString()}`;
+      if (notifiedKeysRef.current.has(key)) continue;
+      notifiedKeysRef.current.add(key);
+
+      const notification = new Notification(event.title, {
+        body: `${format(event.start, 'h:mm a')}${event.location ? ' · ' + event.location : ''}`,
+        tag: key,
+      });
+      notification.onclick = () => {
+        window.focus();
+        notification.close();
+      };
+    }
+  }, [events, relativeNow, notificationsEnabled]);
 
   useEffect(() => {
     function handleKeyDown(e: KeyboardEvent) {
@@ -578,6 +633,18 @@ export default function Home() {
                 }}
               />
               Google ({googleCount})
+            </button>
+            <button
+              type="button"
+              style={toggleChip(notificationsEnabled, '#eab308')}
+              onClick={toggleNotifications}
+              title={
+                notificationsEnabled
+                  ? `Notifications on (${NOTIFY_MINUTES_BEFORE} min before events)`
+                  : 'Turn on event notifications'
+              }
+            >
+              {notificationsEnabled ? '🔔' : '🔕'} Notifications
             </button>
             <button
               type="button"
