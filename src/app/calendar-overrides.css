@@ -88,6 +88,16 @@
   box-shadow: inset 0 -1px 0 rgba(255, 255, 255, 0.03);
 }
 
+/*
+ * The day-name row and the all-day row are flex siblings that can both
+ * shrink to fit a constrained total height. Shrinking the all-day row
+ * (below) means it no longer absorbs that slack on its own, so pin the
+ * day-name row to its natural content height or it gets clipped too.
+ */
+.rbc-time-header-content > .rbc-row.rbc-time-header-cell {
+  flex-shrink: 0;
+}
+
 .rbc-time-view,
 .rbc-month-view {
   border: 1px solid var(--cal-border);
