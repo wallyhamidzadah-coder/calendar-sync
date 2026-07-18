@@ -2,12 +2,16 @@
 
 A local web app that merges Outlook (USC Microsoft 365) and Google Calendar into one unified view.
 
-## Status: Phase 1 complete
+## Status: Phase 1–2 complete, Phase 3+ not started
 
-- Outlook ICS feed integration: working
-- Google Calendar OAuth integration: working
+- Outlook ICS feed integration (read-only): working
+- Google Calendar OAuth integration (read/write): working
 - Merged, sorted event display: working
-- Weekly view, conflict detection, AI scheduling: not started
+- Week/day/month/agenda views, drag-to-move and drag-to-resize (Google events only): working
+- Create/edit/delete Google events, custom event colors: working
+- Meeting-link detection (Zoom/Teams/Meet), search, keyboard shortcuts (m/w/d): working
+- Browser notifications with app-generated chime, background sync every 10 min: working
+- Conflict detection, AI scheduling: not started
 
 ## Architecture
 
@@ -69,7 +73,6 @@ Google Cloud project: `calendar-sync-502204`, OAuth client type: Web application
 
 ## Next milestones
 
-- Phase 2: weekly calendar grid view
 - Phase 3: conflict detection between Outlook and Google events
 - Phase 4: AI scheduling suggestions, natural language search
 - Phase 5: production deployment (will require moving off ICS + local `.tokens.json` toward a database-backed token store, since production can't rely on local disk persistence)
