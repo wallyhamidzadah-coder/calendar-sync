@@ -160,7 +160,17 @@
 
 .rbc-allday-cell {
   background: #141c2a;
-  padding: 6px 8px;
+  padding: 2px 8px;
+}
+
+/*
+ * RBC always reserves space for 2 rows of all-day events even when the
+ * visible week has none, leaving a large empty strip under the day headers.
+ * Let rows shrink to their content instead of a fixed 20px floor each —
+ * real all-day events still render at their own natural height.
+ */
+.rbc-allday-cell .rbc-row {
+  min-height: 0;
 }
 
 .rbc-agenda-view table {
